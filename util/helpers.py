@@ -1,13 +1,21 @@
+# helpers.py
+
 import json
 import re
 import os
+from dotenv import load_dotenv
 
 class Helper:
     
     def __init__(self):
+        load_dotenv()
         self.key = os.getenv("GROQ_API_KEY")
+        self.coder_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+        self.tc_model="mistral-saba-24b"
+        self.exec_model="meta-llama/llama-4-scout-17b-16e-instruct"
+        self.manager_model="llama-3.3-70b-versatile"
     
-    def parse_testcases(self,json_response: str):
+    def parse_testcases(self,json_response: str):        
         try:
             testcases = json.loads(json_response)
             inputs = []
@@ -71,6 +79,7 @@ REQUIREMENTS:
 - Import necessary libraries.
 - In your answer, give only the function implementation, without extra characters or explanations. Don't add any character other than the function in your answer.
 """
+# - We expect your code **to be wrong** for debugging purposes. Please intentionally add some code lines to make the give wrong outputs. To illustrate: raise some unnecessary exceptions or give unexpected outputs.
 
         return prompt
 
@@ -103,6 +112,8 @@ Rules:
 """.strip()
         return prompt
     
+# - We expect one of your testcases **to be wrong** for debugging purposes. Please add one wrong testcase at the end of your answer but don't mark it as "wrong". To illustrate: make input be "h" output be "p".
+
     def coder_config(self):
         name = "Coder"        
         system_message="You are an AI code generator that creates Python functions based on descriptions and test cases."
@@ -110,7 +121,8 @@ Rules:
         llm_config={
             "config_list": [
                 {
-                    "model":"qwen-2.5-coder-32b",
+                    # "model":"qwen-2.5-coder-32b",
+                    "model":self.coder_model,
                     "base_url": "https://api.groq.com/openai/v1", 
                     "api_key": self.key       
                 }
@@ -146,7 +158,7 @@ Rules:
         llm_config={
             "config_list": [
                 {
-                    "model":"qwen-2.5-32b",
+                    "model":self.tc_model,
                     "base_url": "https://api.groq.com/openai/v1", 
                     "api_key": self.key       
                 }
@@ -170,28 +182,42 @@ Rules:
     def executor_config(self):
         name = "Executor"
         
-        system_message="""
-You are an AI code evaluator. 
-Your job is to test Python functions against given test cases and report results clearly.
+#         system_message="""
+# You are an AI code evaluator. 
+# Your job is to test Python functions against given test cases and report results clearly.
 
-You will receive:
-- Python function code (as string)
-- The function name (as string)
-- A list of test cases, where each test contains:
-    - input: a list of arguments
-    - expected_output: the expected result
+# You will receive:
+# - Python function code (as string)
+# - The function name (as string)
+# - A list of test cases, where each test contains:
+#     - input: a list of arguments
+#     - expected_output: the expected result
 
-You should:
-- Dynamically execute the function
-- Run all test cases
-- Report which ones pass or fail
-- Provide a summary with counts and mismatches
-        """       
+# You should:
+# - Dynamically execute the function
+# - Run all test cases
+# - Report which ones pass or fail
+
+# OUTPUT FORMAT: 
+# "Summary: 
+#     Passed: <num1>
+#     Failed: <num2> 
+# Mismatches: 
+#     <tc1> -> input: <input1> ; expected output: <expected_output1> ; program output: <actual_output1>
+#     <tc2> -> input: <input2> ; expected output: <expected_output2> ; program output: <actual_output2>
+#     ...
+# "
+# ### Your answer ***must perfectly match*** the given output format given above. DO NOT add any other character or explanations, just give what is expected as output, stated in output format section.
+# """       
+
+        system_message="You are an AI code evaluator. You have only one duty. You need to evaluate the given code and prepare a evaluation report. You must not do debugging. You must not try to solve problems."
         
         llm_config={
             "config_list": [
                 {
-                    "model":"llama-3.3-70b-versatile",
+                    # "model":"llama-3.3-70b-versatile",
+                    # "model":"meta-llama/llama-4-maverick-17b-128e-instruct",
+                    "model":self.exec_model,
                     "base_url": "https://api.groq.com/openai/v1", 
                     "api_key": self.key       
                 }
@@ -200,13 +226,16 @@ You should:
         }  
                 
         return name, system_message, llm_config
-        
+               
     def manager_config(self):
+        name = "Manager"
+        
+        system_message = "You are the Manager Agent coordinating CoderAgent, TestcaseGeneratorAgent, and ExecutorAgent."
         
         llm_config={
             "config_list": [
                 {
-                    "model": "llama-3.3-70b-specdec",
+                    "model": self.manager_model,
                     "base_url": "https://api.groq.com/openai/v1",
                     "api_key":  self.key 
                 }
@@ -214,6 +243,5 @@ You should:
             "temperature": 0.7
         }
         
-        return llm_config
-    
+        return name, system_message, llm_config
     

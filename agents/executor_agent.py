@@ -1,3 +1,5 @@
+# executor_agent.py
+
 import json
 import traceback
 from util.helpers import Helper
@@ -14,7 +16,13 @@ class ExecutorAgent:
             llm_config=llm_config    
         )
         
-        self.agent.register_for_execution(self._execute)
+        # self.agent.register_for_llm(name="executor", description="Python code executor that executes the generated code and returns the outputs.")(execute)
+        # self.agent.register_for_execution(name="executor")(execute)
+
+
+        # print(self.agent.llm_config["tools"])
+        
+        # self.agent.register_for_execution(self._execute)
 
     @property
     def conversable(self):

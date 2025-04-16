@@ -1,6 +1,21 @@
-import os
+from agents.executor_agent_wt import ExecutorAgent
 
-from dotenv import load_dotenv
-load_dotenv()
+executor = ExecutorAgent()
 
-print("GROQ_API_KEY:", os.getenv("GROQ_API_KEY"))
+testcases = [
+    {"input": {"x": 2}, "expected_output": 4},
+    {"input": {"x": 0}, "expected_output": 0},
+    {"input": {"x": -3}, "expected_output": -9}
+]
+
+code = """
+def square(x):
+    print(f"Calculating square of {x}")
+    return x * x
+"""
+
+# result = executor.execute_and_report(code, testcases)
+
+
+result = executor.create_execution_report(code,testcases)
+print(result)

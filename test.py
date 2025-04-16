@@ -1,30 +1,36 @@
 from agents.manager_agent import ManagerAgent
-from dotenv import load_dotenv
+from agents.coder_agent import CoderAgent
+from agents.executor_agent_wt import ExecutorAgent
+from agents.test_case_generator_agent import TestcaseGeneratorAgent
+from util.helpers import Helper
 
-load_dotenv()
+helper = Helper()
 
-description = """
+coder = CoderAgent()
+testcase = TestcaseGeneratorAgent()
+executor = ExecutorAgent()
+manager = ManagerAgent(coder,testcase,executor)
+
+func_name ="sample_func"
+desc = """
 Given a string, return a new string with the words in reverse order.
 Words are separated by spaces. Preserve only single spaces between words in the output.
 Leading and trailing spaces should be removed in the result.
 """
 
-validation_inputs = [
+sample_inputs = [
     ("hello world",),
     ("   OpenAI   builds powerful AI tools   ",),
     ("a b c",),
     ("singleword",),
 ]
-validation_outputs = [
+
+expected_outputs = [
     "world hello",
     "tools AI powerful builds OpenAI",
     "c b a",
     "singleword",
 ]
 
-manager = ManagerAgent(func_name="reverse_words")
-
-final_code = manager.run_sequential_chat(description, (validation_inputs, validation_outputs))
-
-print("\nFinal Code Output:\n")
-print(final_code)
+final_code = manager.run_workflow(desc, func_name, sample_inputs, expected_outputs)
+print(f"Final code: {final_code}")

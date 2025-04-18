@@ -7,8 +7,7 @@ from autogen import ConversableAgent
 from util.helpers import Helper 
 from agents.coder_agent import CoderAgent 
 from agents.test_case_generator_agent import TestcaseGeneratorAgent 
-# from agents.executor_agent import ExecutorAgent
-from agents.executor_agent_wt import ExecutorAgent
+from agents.executor_agent import ExecutorAgent
 
 
 class ManagerAgent: 
@@ -78,7 +77,6 @@ class ManagerAgent:
         payload_str = json.dumps(payload)
         
         self.log_message("executor_channel", f"Manager:\n{payload_str}")
-        # executor_response = self.executor_agent.execute_and_report(code,testcases)
         executor_response = self.executor_agent.create_execution_report(code,testcases)
         self.log_message("executor_channel", f"ExecutorAgent:\n{executor_response}")
         
@@ -90,17 +88,12 @@ class ManagerAgent:
         The function searches for lines containing "Passed:" and "Failed:" and then parses the numbers.
         It returns True if the number of failed tests is 0, otherwise False.
         """
-        # Öncelikle, output içindeki "Summary" bölümünü ayıklamaya çalışalım.
         summary_match = re.search(r"Summary:(.*)", executor_response, re.IGNORECASE | re.DOTALL)
         if summary_match:
             summary_text = summary_match.group(1)
-            # Summary kısmı içerisinde Passed ve Failed satırlarını bulalım.
-            # passed_match = re.search(r"Passed\s*:\s*(\d+)", summary_text, re.IGNORECASE)
             failed_match = re.search(r"Failed\s*:\s*(\d+)", summary_text, re.IGNORECASE)
             if failed_match:
                 failed_count = int(failed_match.group(1))
-                # İsteğe bağlı olarak passed_match'i de kontrol edebiliriz:
-                # passed_count = int(passed_match.group(1)) if passed_match else None
                 return failed_count == 0  
         raise ValueError("Unexpected error in manager_agent.analyze_executor_response")  
 
@@ -170,13 +163,10 @@ Return the test cases as a valid JSON array of dictionaries, using the following
         test_inputs, test_outputs = self.helper.parse_testcases(test_testcases)        
         coder_response = self.initiate_code_generation(func_name, problem_description, validation_inputs, validation_outputs)
         current_code = self.helper.extract_code(coder_response)
-        
-        print(current_code)
-        
+            
         while self.iter_counter < self.MAX_ITER:
             self.log_message("executor_channel", f"Manager:\nThe iteration {self.iter_counter} starts.")
             executor_response = self.execute_code(current_code, func_name, test_inputs, test_outputs)
-            print(f"executor response: {executor_response}")
             self.log_message("executor_channel", f"Executor:\n{executor_response}")
 
             try: 
@@ -190,18 +180,11 @@ Return the test cases as a valid JSON array of dictionaries, using the following
 
             self.log_message("executor_channel", f"Manager:\nSome testcases failed. feedback loop starts")
             coder_fb_response, testcase_fb_response = self.provide_feedback(executor_response)
-            
-            print(f"coder response: {coder_fb_response}")
-            print(f"tc response: {testcase_fb_response}")
-            
+    
             if "I'm sure the implementation is perfect" not in coder_fb_response:
                 current_code = self.helper.extract_code(coder_fb_response)
             if "I'm sure the testcases are true" not in testcase_fb_response:
                 test_inputs, test_outputs = self.helper.parse_testcases(testcase_fb_response)
-
-            print(f"current code: {current_code}")
-            print(f"test_inputs: {test_inputs}")
-            print(f"test_outputs: {test_outputs}")
             
             self.iter_counter +=1 
         

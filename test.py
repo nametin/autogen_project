@@ -1,6 +1,6 @@
 from agents.manager_agent import ManagerAgent
 from agents.coder_agent import CoderAgent
-from agents.executor_agent_wt import ExecutorAgent
+from agents.executor_agent import ExecutorAgent
 from agents.test_case_generator_agent import TestcaseGeneratorAgent
 from util.helpers import Helper
 

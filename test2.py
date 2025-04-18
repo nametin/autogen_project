@@ -1,4 +1,4 @@
-from agents.executor_agent_wt import ExecutorAgent
+from agents.executor_agent import ExecutorAgent
 
 executor = ExecutorAgent()
 

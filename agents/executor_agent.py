@@ -1,97 +1,220 @@
-# executor_agent.py
-
+import io
+import contextlib
+import types
 import json
-import traceback
 from util.helpers import Helper
-from autogen import ConversableAgent
 
-class ExecutorAgent:
-    def __init__(self):
-        self.helper = Helper()
-        name, system_message, llm_config = self.helper.executor_config()
+from autogen import ConversableAgent, register_function
+from typing import Annotated
+
+# TOOL FUNCTION 
+def execute_code (python_code: Annotated[str, "Python function definition as string"],
+                    inputs: Annotated[dict, "Dictionary of function inputs"]) -> dict:
+    returned = None
+    
+    inputs = inputs or {}
+    exec_globals = {}
+    exec_locals = {}
         
-        self.agent= ConversableAgent(
+    stdout = io.StringIO()
+        
+    with contextlib.redirect_stdout(stdout):
+        try: 
+            exec(python_code, exec_globals, exec_locals)
+            func = next(val for val in exec_locals.values() if isinstance(val, types.FunctionType))
+            
+            returned = func(**inputs)
+
+        except Exception as e:
+            return {
+                "printed": stdout.getvalue(),
+                "error": str(e)
+            }
+            
+    return {
+        "printed": stdout.getvalue(),
+        "returned": returned
+    }
+
+def execute_helper (python_code: str, input_args: dict):
+    
+    exec_globals = {}
+    exec_locals = {}
+    stdout = io.StringIO()
+    returned = None
+    error = None
+    
+    with contextlib.redirect_stdout(stdout):
+        try:
+            exec(python_code, exec_globals, exec_locals)
+            func = next(val for val in exec_locals.values() if isinstance(val, types.FunctionType))
+            if isinstance(input_args, dict):
+                returned = func(**input_args)
+            elif isinstance(input_args, list):
+                returned = func(*input_args)
+            else: 
+                returned = func(input_args)
+
+        except Exception as e:
+            error = str(e)
+
+    return {
+        "input": input_args,
+        "printed": stdout.getvalue(),
+        "returned": returned,
+        "error": error
+    }    
+    
+# TOOL FUNCTION 
+def execute_code_batch (python_code: Annotated[str, "Python function definition as string"],
+                        inputs: Annotated[list, "List of input dictionaries to call the function with"]
+)-> dict :
+    executions = [execute_helper(python_code, input_args) for input_args in inputs]
+    return {"executions": executions}
+
+class ExecutorAgent: 
+    def __init__ (self):
+        self.helper = Helper()
+        # name, system_message, llm_config = self.helper.executor_assistant_config()
+        
+        name, system_message, llm_config = self.helper.executor_config()
+
+        self.assistant= ConversableAgent(
             name=name,
             system_message=system_message,
             llm_config=llm_config    
         )
+
+        self.user_proxy = ConversableAgent(
+            name = "user",
+            llm_config=False,
+            is_termination_msg=lambda msg: msg.get("content") and "quit chat" in msg["content"],
+            human_input_mode="NEVER"
+        )   
         
-        # self.agent.register_for_llm(name="executor", description="Python code executor that executes the generated code and returns the outputs.")(execute)
-        # self.agent.register_for_execution(name="executor")(execute)
+        self.register_tool()
 
-
-        # print(self.agent.llm_config["tools"])
+    def register_tool (self):
+        register_function(
+            execute_code,
+            caller=self.assistant,
+            executor=self.user_proxy,
+            name="execute_code",
+            description="Executes Python function code and returns both printed and returned values."
+        )
         
-        # self.agent.register_for_execution(self._execute)
+        register_function(
+            execute_code_batch,
+            caller=self.assistant,
+            executor=self.user_proxy,
+            name="execute_code_batch",
+            description="Executes a Python function with multiple input sets and returns results for all test cases."
+        )
+        
+    def run_task(self,message:str):
+        
+        chat_result = self.user_proxy.initiate_chat(self.assistant,message=message)
+        for msg in reversed(chat_result.chat_history):
+            if msg.get("role") == "user" and msg.get("name") == "Executor":
+                content = msg.get("content")
+                return content.replace("quit chat", "").strip()
 
-    @property
-    def conversable(self):
-        return self.agent
+        return None
+        
+    def execute_and_report(self, python_code: str, testcases: list):
 
+        prompt = """
+You are an AI code evaluator. Right now you're in a chat with an assistant agent that can run python methods and return their outputs.
+You will receive: 
+- Python function code (as string)
+- A list of test cases, where each test contains:
+    - input: a list of arguments
+    - expected_output: the expected result
 
-    def _execute(self, messages, sender, config):
-        try:
-            content = messages[-1]["content"]
-            data = json.loads(content)
+You should: 
+- Dynamically execute the function for every testcase. To execute the function, use the chat that you're in. Note that the other agent in the chat can run python methods and return their outputs.
+- Run all testcases sending them one by one to the chat. While sending message to chat, follow the 'MESSAGE FORMAT' given below.
+- Report which testcases pass or fail. (if actual output matches the expected output, then testcase passes, fails otherwise.) You'll return a summary at the end of all testcase executions. 
 
-            code = data["code"]
-            function_name = data["function_name"]
-            testcases = data["testcases"]
+Run the testcases ***ONE BY ONE*** don't send all testcases to the other agent in only one message.
+If you ended running the testcases (using the chat), it means your chat should be terminated. When you want to terminate the chat session, send a message to chat following the 'OUTPUT FORMAT' given below. 
+Note that if your chat message includes 'quit chat', then chat will be terminated. Please don't add 'quit chat' to your chat message unless you want to terminate the session. 
 
-            local_env = {}
-            exec(code, {}, local_env)
+MESSAGE FORMAT: 
+code: 
+<python code>
+input: 
+<input>  
 
-            func = local_env.get(function_name)
-            if not callable(func):
-                return f"[Executor ❌] Function '{function_name}' not found."
+OUTPUT FORMAT: 
+quit chat
 
-            results = []
-            for i, case in enumerate(testcases):
-                try:
-                    result = func(*case["input"])
-                    passed = result == case["expected_output"]
-                    results.append({
-                        "input": case["input"],
-                        "expected": case["expected_output"],
-                        "actual": result,
-                        "passed": passed
-                    })
-                except Exception as e:
-                    results.append({
-                        "input": case["input"],
-                        "expected": case["expected_output"],
-                        "actual": str(e),
-                        "passed": False,
-                        "error": traceback.format_exc()
-                    })
+Summary: 
+    Passed: <num1>
+    Failed: <num2> 
+Mismatches: 
+    Testcase <tc1> -> input: <input1> ; expected output: <expected_output1> ; program output: <actual_output1>
+    Testcase <tc2> -> input: <input2> ; expected output: <expected_output2> ; program output: <actual_output2>
+    ...
+    
+***NOTE THAT YOUR MESSAGE SHOULD PERFECTLY MATCH EITHER THE GIVEN MESSAGE FORMAT OR GIVEN OUTPUT FORMAT. DO NOT ANY OTHER CHARACTER OR EXPLANATION JUST GIVE WHAT IS EXPECTED***
+"""
+        
+        payload = {
+            "code": python_code,
+            "testcases": testcases
+        }
+        full_message = prompt + "\n" + json.dumps(payload)
+        
+        return self.run_task(full_message)
+    
+    def create_execution_report(self,python_code: str, testcases: list):
+        
+        prompt = """
+You are an AI test evaluator. A tool (execute_code_batch) is available to you that can run a Python function across multiple testcases in batch.
+Each testcase includes:
+- input: a dictionary of arguments to pass to the function
+- expected_output: the expected result
 
-            # Özetleme
-            passed_count = sum(1 for r in results if r["passed"])
-            total = len(results)
+Your task:
+- Call the tool with the given function and testcases (all at once).
+- Then compare each execution result:
+    - If the returned value matches expected_output, mark as PASSED.
+    - Otherwise, mark as FAILED.
 
-            summary = f"🧪 Executor Report: {passed_count}/{total} tests passed.\n\n"
-            for r in results:
-                status = "✅" if r["passed"] else "❌"
-                summary += f"{status} Input: {r['input']} → Expected: {r['expected']}, Got: {r['actual']}\n"
+After evaluating all test cases, generate a final summary using the following **strict format**:
 
-            return summary
+OUTPUT FORMAT:
+quit chat
 
-        except Exception as e:
-            return f"[Executor 💥] Internal error: {str(e)}"
+Summary: 
+    Passed: <number_of_passed_cases>
+    Failed: <number_of_failed_cases>
+Mismatches: 
+    Testcase <i> -> input: <input> ; expected output: <expected_output> ; program output: <actual> ; error: <error_text>
+    ...
+    
+IMPORTANT RULES:
 
+- DO NOT modify the function code under any circumstances.
+- DO NOT modify the content of test cases (neither `input` nor `expected_output`).
+- If a tool call fails due to a type error or formatting issue, you are allowed to retry the tool call — but only by formatting the input correctly.
+    - You may NOT change input values or expected values.
+    - If errors occur because of formatting, you're only allowed to retry by formatting the input **correctly**, not by changing its values.
+- If the function code itself is invalid (e.g., syntax error, undefined variables), include the error message in the summary report.
+- Again, carefully note that, YOU ARE NOT ALLOWED TO CHANGE THE GIVEN FUNCTION OR INPUT VALUES IN ANY CASE.
+- If your message includes the phrase "quit chat", the chat session will be terminated — only include it in the final summary message.
 
-    # for debug
-    def run(self, code: str, function_name: str):
-        local_env = {}
-        try:
-            exec(code, {}, local_env)
-        except Exception as e:
-            print(f"[!] Execution error: {e}")
-            return None
+***DO NOT add any other explanation or comments. Only give the OUTPUT FORMAT stated above at the end. ***
+"""
 
-        func = local_env.get(function_name)
-        if callable(func):
-            return func
-        else:
-            print(f"[!] Function '{function_name}' not found or not callable.")
-            return None
+        inputs = [tc["input"] for tc in testcases]
+
+        payload = {
+            "code": python_code,
+            "inputs": inputs,
+            "testcases": testcases  
+        }
+
+        full_message = prompt + "\n" + json.dumps(payload)
+        return self.run_task(full_message)

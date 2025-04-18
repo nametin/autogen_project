@@ -1,3 +1,5 @@
+# executor_agent.py
+
 import io
 import contextlib
 import types
@@ -7,34 +9,6 @@ from util.helpers import Helper
 from autogen import ConversableAgent, register_function
 from typing import Annotated
 
-# TOOL FUNCTION 
-def execute_code (python_code: Annotated[str, "Python function definition as string"],
-                    inputs: Annotated[dict, "Dictionary of function inputs"]) -> dict:
-    returned = None
-    
-    inputs = inputs or {}
-    exec_globals = {}
-    exec_locals = {}
-        
-    stdout = io.StringIO()
-        
-    with contextlib.redirect_stdout(stdout):
-        try: 
-            exec(python_code, exec_globals, exec_locals)
-            func = next(val for val in exec_locals.values() if isinstance(val, types.FunctionType))
-            
-            returned = func(**inputs)
-
-        except Exception as e:
-            return {
-                "printed": stdout.getvalue(),
-                "error": str(e)
-            }
-            
-    return {
-        "printed": stdout.getvalue(),
-        "returned": returned
-    }
 
 def execute_helper (python_code: str, input_args: dict):
     
@@ -75,7 +49,6 @@ def execute_code_batch (python_code: Annotated[str, "Python function definition 
 class ExecutorAgent: 
     def __init__ (self):
         self.helper = Helper()
-        # name, system_message, llm_config = self.helper.executor_assistant_config()
         
         name, system_message, llm_config = self.helper.executor_config()
 
@@ -94,15 +67,7 @@ class ExecutorAgent:
         
         self.register_tool()
 
-    def register_tool (self):
-        register_function(
-            execute_code,
-            caller=self.assistant,
-            executor=self.user_proxy,
-            name="execute_code",
-            description="Executes Python function code and returns both printed and returned values."
-        )
-        
+    def register_tool (self):        
         register_function(
             execute_code_batch,
             caller=self.assistant,
@@ -120,53 +85,6 @@ class ExecutorAgent:
                 return content.replace("quit chat", "").strip()
 
         return None
-        
-    def execute_and_report(self, python_code: str, testcases: list):
-
-        prompt = """
-You are an AI code evaluator. Right now you're in a chat with an assistant agent that can run python methods and return their outputs.
-You will receive: 
-- Python function code (as string)
-- A list of test cases, where each test contains:
-    - input: a list of arguments
-    - expected_output: the expected result
-
-You should: 
-- Dynamically execute the function for every testcase. To execute the function, use the chat that you're in. Note that the other agent in the chat can run python methods and return their outputs.
-- Run all testcases sending them one by one to the chat. While sending message to chat, follow the 'MESSAGE FORMAT' given below.
-- Report which testcases pass or fail. (if actual output matches the expected output, then testcase passes, fails otherwise.) You'll return a summary at the end of all testcase executions. 
-
-Run the testcases ***ONE BY ONE*** don't send all testcases to the other agent in only one message.
-If you ended running the testcases (using the chat), it means your chat should be terminated. When you want to terminate the chat session, send a message to chat following the 'OUTPUT FORMAT' given below. 
-Note that if your chat message includes 'quit chat', then chat will be terminated. Please don't add 'quit chat' to your chat message unless you want to terminate the session. 
-
-MESSAGE FORMAT: 
-code: 
-<python code>
-input: 
-<input>  
-
-OUTPUT FORMAT: 
-quit chat
-
-Summary: 
-    Passed: <num1>
-    Failed: <num2> 
-Mismatches: 
-    Testcase <tc1> -> input: <input1> ; expected output: <expected_output1> ; program output: <actual_output1>
-    Testcase <tc2> -> input: <input2> ; expected output: <expected_output2> ; program output: <actual_output2>
-    ...
-    
-***NOTE THAT YOUR MESSAGE SHOULD PERFECTLY MATCH EITHER THE GIVEN MESSAGE FORMAT OR GIVEN OUTPUT FORMAT. DO NOT ANY OTHER CHARACTER OR EXPLANATION JUST GIVE WHAT IS EXPECTED***
-"""
-        
-        payload = {
-            "code": python_code,
-            "testcases": testcases
-        }
-        full_message = prompt + "\n" + json.dumps(payload)
-        
-        return self.run_task(full_message)
     
     def create_execution_report(self,python_code: str, testcases: list):
         

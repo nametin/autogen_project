@@ -1,7 +1,6 @@
 # manager_agent.py
-
-import json
 import re 
+import base64
 
 from autogen import ConversableAgent 
 from util.helpers import Helper 
@@ -12,7 +11,6 @@ from agents.executor_agent import ExecutorAgent
 
 class ManagerAgent: 
     def __init__(self, coder_agent: CoderAgent, testcase_agent: TestcaseGeneratorAgent, executor_agent: ExecutorAgent): 
-        # Yardımcı sınıf üzerinden manager konfigürasyonunu alıyoruz. 
         self.helper = Helper() 
         self.name,self.system_message,self.llm_config = self.helper.manager_config() 
         self.coder_agent = coder_agent
@@ -22,7 +20,7 @@ class ManagerAgent:
         self.channels = {
             "coder_channel": [],
             "test_channel": [],
-            "executor_channel": []  # Executor’dan gelen mesajlar için (merkezi erişim sağlanacak)
+            "executor_channel": []  
         }
         
         self.MAX_ITER = 5
@@ -67,17 +65,10 @@ class ManagerAgent:
         
         testcases = [{"input": test_inputs[i], "expected_output": test_outputs[i]} for i in range(len(test_inputs))]
 
+        code_b64= base64.b64encode(code.encode('utf-8')).decode('utf-8')
         
-        payload = {
-            "code": code,
-            "function_name":func_name,
-            "testcases":testcases
-        }
-        
-        payload_str = json.dumps(payload)
-        
-        self.log_message("executor_channel", f"Manager:\n{payload_str}")
-        executor_response = self.executor_agent.create_execution_report(code,testcases)
+        self.log_message("executor_channel", f"Manager:\nSending following code for execution:\n{code}")
+        executor_response = self.executor_agent.create_execution_report(code_b64,testcases)
         self.log_message("executor_channel", f"ExecutorAgent:\n{executor_response}")
         
         return executor_response 
@@ -163,7 +154,7 @@ Return the test cases as a valid JSON array of dictionaries, using the following
         test_inputs, test_outputs = self.helper.parse_testcases(test_testcases)        
         coder_response = self.initiate_code_generation(func_name, problem_description, validation_inputs, validation_outputs)
         current_code = self.helper.extract_code(coder_response)
-            
+        print(current_code)
         while self.iter_counter < self.MAX_ITER:
             self.log_message("executor_channel", f"Manager:\nThe iteration {self.iter_counter} starts.")
             executor_response = self.execute_code(current_code, func_name, test_inputs, test_outputs)
@@ -172,7 +163,7 @@ Return the test cases as a valid JSON array of dictionaries, using the following
             try: 
                 tests_passed = self.analyze_executor_response(executor_response)  
             except Exception as e : 
-                self.log_message("executor_channel", f"Manager:\nError analysing: {e}")
+                self.log_message("executor_channel", f"Manager:\nError analysing executor message: {e}")
             
             if tests_passed: 
                 self.log_message("executor_channel", f"All tests passed in iteration {self.iter_counter}")

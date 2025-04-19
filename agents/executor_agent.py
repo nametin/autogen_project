@@ -4,6 +4,7 @@ import io
 import contextlib
 import types
 import json
+import base64
 from util.helpers import Helper
 
 from autogen import ConversableAgent, register_function
@@ -40,9 +41,10 @@ def execute_helper (python_code: str, input_args: dict):
     }    
     
 # TOOL FUNCTION 
-def execute_code_batch (python_code: Annotated[str, "Python function definition as string"],
+def execute_code_batch (python_code_b64: Annotated[str, "Base64-encoded Python function definition as string"],
                         inputs: Annotated[list, "List of input dictionaries to call the function with"]
 )-> dict :
+    python_code = base64.b64decode(python_code_b64).decode('utf-8')
     executions = [execute_helper(python_code, input_args) for input_args in inputs]
     return {"executions": executions}
 
@@ -86,7 +88,7 @@ class ExecutorAgent:
 
         return None
     
-    def create_execution_report(self,python_code: str, testcases: list):
+    def create_execution_report(self,python_code_b64: str, testcases: list):
         
         prompt = """
 You are an AI test evaluator. A tool (execute_code_batch) is available to you that can run a Python function across multiple testcases in batch.
@@ -129,7 +131,7 @@ IMPORTANT RULES:
         inputs = [tc["input"] for tc in testcases]
 
         payload = {
-            "code": python_code,
+            "python_code_b64": python_code_b64,
             "inputs": inputs,
             "testcases": testcases  
         }

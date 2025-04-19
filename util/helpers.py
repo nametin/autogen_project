@@ -17,8 +17,8 @@ class Helper:
         # self.coder_model = "deepseek-r1-distill-llama-70b"
         self.coder_model= "llama-3.3-70b-versatile"
         
-        self.tc_model="meta-llama/llama-4-scout-17b-16e-instruct"
-        # self.tc_model= "llama3-70b-8192"
+        # self.tc_model="meta-llama/llama-4-scout-17b-16e-instruct"
+        self.tc_model= "llama3-70b-8192"
         
         self.exec_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
         # self.exec_model = "llama-3.1-8b-instant"
@@ -69,6 +69,8 @@ class Helper:
         test_cases = "\n".join([f"- Input: {sample_inputs[i]} → Expected Output: {expected_outputs[i]}" for i in range(len(sample_inputs))])
 
         prompt=f"""
+You are a senior Python developer.
+
 CODING TASK IN PYTHON:
 Write an optimized and well-documented Python function based on the following details:
 Function name: 
@@ -84,16 +86,16 @@ The function should:
 - Be efficient and optimized.
 - Avoid unnecessary complexity.
 - Ensure all given inputs return the expected outputs.
+- Be careful about indentation — make sure all blocks are properly indented.
             
 REQUIREMENTS: 
 - Provide a Python implementation.
 - Import necessary libraries.
 - In your answer, give only the function implementation, without extra characters or explanations. Don't add any character other than the function in your answer.
 """
-
         return prompt
 
-# - We expect your code **to be wrong** for debugging purposes. Please intentionally add some code lines to make the give wrong outputs. To illustrate: raise some unnecessary exceptions or give unexpected outputs.
+# - Only for your first answer, we expect your code **to be intentionally wrong** for debugging purposes. Please intentionally add some code lines to make the give wrong outputs. To illustrate: raise some unnecessary exceptions or give unexpected outputs.
 
     def build_tc_prompt(self, description):
         prompt = f"""
@@ -124,7 +126,7 @@ Rules:
 """.strip()
         return prompt
     
-# - We expect one of your testcases **to be wrong** for debugging purposes. Please add one wrong testcase at the end of your answer but don't mark it as "wrong". To illustrate: make input be "h" output be "p".
+# - We expect one of your testcases **to be intentionally wrong** for debugging purposes. Please add one wrong testcase at the end of your answer but don't mark it as "wrong". To illustrate: make input be "h" output be "p".
 
     def coder_config(self):
         name = "Coder"        

@@ -14,13 +14,15 @@ class Helper:
         # First line is preview model
         # Second line is production model. If preview can't found, then production will be used.  
                 
-        # self.coder_model = "deepseek-r1-distill-llama-70b"
-        self.coder_model= "llama-3.3-70b-versatile"
+        self.coder_model = "deepseek-r1-distill-llama-70b"
+        # self.coder_model= "llama-3.3-70b-versatile"
         
         # self.tc_model="meta-llama/llama-4-scout-17b-16e-instruct"
-        self.tc_model= "llama3-70b-8192"
+        self.tc_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
+        # self.tc_model= "llama3-70b-8192"
         
-        self.exec_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
+        self.exec_model="meta-llama/llama-4-scout-17b-16e-instruct"
+        # self.exec_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
         # self.exec_model = "llama-3.1-8b-instant"
         
         self.manager_model="mistral-saba-24b"
@@ -126,7 +128,7 @@ Rules:
 """.strip()
         return prompt
     
-# - We expect one of your testcases **to be intentionally wrong** for debugging purposes. Please add one wrong testcase at the end of your answer but don't mark it as "wrong". To illustrate: make input be "h" output be "p".
+# - Only for your first answer, we expect one of your testcases **to be intentionally wrong** for debugging purposes. Please add one wrong testcase at the end of your answer but don't mark it as "wrong". To illustrate: make input be "h" output be "p".
 
     def coder_config(self):
         name = "Coder"        

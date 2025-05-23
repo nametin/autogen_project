@@ -110,7 +110,7 @@ quit chat
 Summary: 
     Passed: <number_of_passed_cases>
     Failed: <number_of_failed_cases>
-Mismatches: 
+Mismatches: (Failed Testcases)
     Testcase <i> -> input: <input> ; expected output: <expected_output> ; program output: <actual> ; error: <error_text>
     ...
     

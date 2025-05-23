@@ -151,7 +151,8 @@ Return the test cases as a valid JSON array of dictionaries, using the following
         self.log_message("executor_channel", "Workflow starts")
 
         test_testcases = self.initiate_testcase_generation(problem_description)
-        test_inputs, test_outputs = self.helper.parse_testcases(test_testcases)        
+        test_inputs, test_outputs = self.helper.parse_testcases(test_testcases)  
+        print(test_testcases)      
         coder_response = self.initiate_code_generation(func_name, problem_description, validation_inputs, validation_outputs)
         current_code = self.helper.extract_code(coder_response)
         print(current_code)

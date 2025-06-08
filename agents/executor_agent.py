@@ -5,20 +5,25 @@ import contextlib
 import types
 import json
 import base64
+import io
+import os
+import subprocess
+
 from util.helpers import Helper
+from util.docker_module import DockerSandbox
+sandbox = DockerSandbox()
 
 from autogen import ConversableAgent, register_function
 from typing import Annotated
 
+def execute_helper_old(python_code: str, input_args: dict):
 
-def execute_helper (python_code: str, input_args: dict):
-    
     exec_globals = {}
     exec_locals = {}
     stdout = io.StringIO()
     returned = None
     error = None
-    
+
     with contextlib.redirect_stdout(stdout):
         try:
             exec(python_code, exec_globals, exec_locals)
@@ -39,14 +44,34 @@ def execute_helper (python_code: str, input_args: dict):
         "returned": returned,
         "error": error
     }    
-    
-# TOOL FUNCTION 
-def execute_code_batch (python_code_b64: Annotated[str, "Base64-encoded Python function definition as string"],
-                        inputs: Annotated[list, "List of input dictionaries to call the function with"]
-)-> dict :
-    python_code = base64.b64decode(python_code_b64).decode('utf-8')
-    executions = [execute_helper(python_code, input_args) for input_args in inputs]
+
+# OLD TOOL FUNCTION (before docker implementation)
+def execute_code_batch_old2(
+    python_code_b64: Annotated[
+        str, "Base64-encoded Python function definition as string"
+    ],
+    inputs: Annotated[list, "List of input dictionaries to call the function with"],
+) -> dict:
+    python_code = base64.b64decode(python_code_b64).decode("utf-8")
+    executions = [execute_helper_old(python_code, input_args) for input_args in inputs]
     return {"executions": executions}
+
+# old TOOL FUNCTION
+def execute_code_batch(
+    python_code_b64: Annotated[str, "Base64-encoded Python function definition as string"],
+    inputs: Annotated[list, "List of input dictionaries to call the function with"],
+) -> dict:
+    x = sandbox.exec_batch(python_code_b64, inputs, timeout=5)
+    print(x)
+    return x
+
+
+# def execute_code_batch(
+#     python_code_b64: Annotated[str, "Base64-encoded Python function definition"],
+#     testcases: Annotated[list, "List of dicts with 'input' and 'expected_output'"],
+# ) -> dict:
+#     return sandbox.exec_batch(python_code_b64, testcases, timeout=5)
+
 
 class ExecutorAgent: 
     def __init__ (self):

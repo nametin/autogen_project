@@ -6,28 +6,28 @@ import os
 from dotenv import load_dotenv
 
 class Helper:
-    
+
     def __init__(self):
         load_dotenv()
         self.key = os.getenv("GROQ_API_KEY")
-        
+
         # First line is preview model
-        # Second line is production model. If preview can't found, then production will be used.  
-                
+        # Second line is production model. If preview can't found, then production will be used.
+
         self.coder_model = "deepseek-r1-distill-llama-70b"
         # self.coder_model= "llama-3.3-70b-versatile"
-        
+
         # self.tc_model="meta-llama/llama-4-scout-17b-16e-instruct"
         self.tc_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
         # self.tc_model= "llama3-70b-8192"
-        
+
         self.exec_model="meta-llama/llama-4-scout-17b-16e-instruct"
         # self.exec_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
         # self.exec_model = "llama-3.1-8b-instant"
-        
+
         self.manager_model="mistral-saba-24b"
         # self.manager_model="gemma2-9b-it"
-    
+
     def parse_testcases(self,json_response: str):        
         try:
             testcases = json.loads(json_response)
@@ -43,7 +43,7 @@ class Helper:
                     inputs.append(tuple(inp))
                 else:
                     inputs.append((inp,))
-                    
+
                 outputs.append(out)
 
             return inputs, outputs
@@ -59,15 +59,15 @@ class Helper:
             code_blocks = re.findall(r"```(?:python)?\n(.*?)```", raw_output, re.DOTALL)
             return code_blocks[0].strip() if code_blocks else raw_output.strip()
         return raw_output.strip()
-    
+
     def build_coder_prompt(self,func_name, description, sample_inputs=None, expected_outputs=None):
-        
+
         if sample_inputs is None or expected_outputs is None:
             raise ValueError("Sample inputs and expected outputs must be provided.")
 
         if len(sample_inputs) != len(expected_outputs):
             raise ValueError("Each sample input should have a corresponding expected output.")
-        
+
         test_cases = "\n".join([f"- Input: {sample_inputs[i]} → Expected Output: {expected_outputs[i]}" for i in range(len(sample_inputs))])
 
         prompt=f"""
@@ -97,7 +97,7 @@ REQUIREMENTS:
 """
         return prompt
 
-# - Only for your first answer, we expect your code **to be intentionally wrong** for debugging purposes. Please intentionally add some code lines to make the give wrong outputs. To illustrate: raise some unnecessary exceptions or give unexpected outputs.
+    # - Only for your first answer, we expect your code **to be intentionally wrong** for debugging purposes. Please intentionally add some code lines to make the give wrong outputs. To illustrate: raise some unnecessary exceptions or give unexpected outputs.
 
     def build_tc_prompt(self, description):
         prompt = f"""
@@ -127,8 +127,8 @@ Rules:
 - Do NOT include any explanations or markdown. Just raw JSON.
 """.strip()
         return prompt
-    
-# - Only for your first answer, we expect one of your testcases **to be intentionally wrong** for debugging purposes. Please add one wrong testcase at the end of your answer but don't mark it as "wrong". To illustrate: make input be "h" output be "p".
+
+    # - Only for your first answer, we expect one of your testcases **to be intentionally wrong** for debugging purposes. Please add one wrong testcase at the end of your answer but don't mark it as "wrong". To illustrate: make input be "h" output be "p".
 
     def coder_config(self):
         name = "Coder"        
@@ -145,7 +145,7 @@ Rules:
             ],
             "temperature": 0.7
         }     
-        
+
         llm_config_local={
             "config_list": [
                 {
@@ -156,13 +156,12 @@ Rules:
             ],
             "temperature": 0.7
         }  
-        
-        
+
         return name,system_message, llm_config
 
     def testcase_generator_config(self):
         name = "TestcaseGenerator"
-        
+
         system_message="""
         You are an AI test designer that generates Python test cases without seeing the implementation. 
         Your job is to create diverse, valid, and well-structured test cases based only on the task description.
@@ -170,7 +169,7 @@ Rules:
         For each test, provide an input and its expected output. Ensure outputs are logically consistent with the task.
         Do not include Python code, only structured test descriptions.
         """       
-        
+
         llm_config={
             "config_list": [
                 {
@@ -181,7 +180,7 @@ Rules:
             ],
             "temperature": 0.7
         }  
-        
+
         llm_config_local= {
             "config_list": [
                 {
@@ -192,42 +191,42 @@ Rules:
             ],
             "temperature": 0.4
         }          
-        
+
         return name, system_message, llm_config
-    
+
     def executor_config(self):
         name = "Executor"
-        
-#         system_message="""
-# You are an AI code evaluator. 
-# Your job is to test Python functions against given test cases and report results clearly.
 
-# You will receive:
-# - Python function code (as string)
-# - The function name (as string)
-# - A list of test cases, where each test contains:
-#     - input: a list of arguments
-#     - expected_output: the expected result
+        #         system_message="""
+        # You are an AI code evaluator.
+        # Your job is to test Python functions against given test cases and report results clearly.
 
-# You should:
-# - Dynamically execute the function
-# - Run all test cases
-# - Report which ones pass or fail
+        # You will receive:
+        # - Python function code (as string)
+        # - The function name (as string)
+        # - A list of test cases, where each test contains:
+        #     - input: a list of arguments
+        #     - expected_output: the expected result
 
-# OUTPUT FORMAT: 
-# "Summary: 
-#     Passed: <num1>
-#     Failed: <num2> 
-# Mismatches: 
-#     <tc1> -> input: <input1> ; expected output: <expected_output1> ; program output: <actual_output1>
-#     <tc2> -> input: <input2> ; expected output: <expected_output2> ; program output: <actual_output2>
-#     ...
-# "
-# ### Your answer ***must perfectly match*** the given output format given above. DO NOT add any other character or explanations, just give what is expected as output, stated in output format section.
-# """       
+        # You should:
+        # - Dynamically execute the function
+        # - Run all test cases
+        # - Report which ones pass or fail
+
+        # OUTPUT FORMAT:
+        # "Summary:
+        #     Passed: <num1>
+        #     Failed: <num2>
+        # Mismatches:
+        #     <tc1> -> input: <input1> ; expected output: <expected_output1> ; program output: <actual_output1>
+        #     <tc2> -> input: <input2> ; expected output: <expected_output2> ; program output: <actual_output2>
+        #     ...
+        # "
+        # ### Your answer ***must perfectly match*** the given output format given above. DO NOT add any other character or explanations, just give what is expected as output, stated in output format section.
+        # """
 
         system_message="You are an AI code evaluator. You have only one duty. You need to evaluate the given code and prepare a evaluation report. You must not do debugging. You must not try to solve problems."
-        
+
         llm_config={
             "config_list": [
                 {
@@ -240,14 +239,14 @@ Rules:
             ],
             "temperature": 0.9
         }  
-                
+
         return name, system_message, llm_config
-               
+
     def manager_config(self):
         name = "Manager"
-        
+
         system_message = "You are the Manager Agent coordinating CoderAgent, TestcaseGeneratorAgent, and ExecutorAgent."
-        
+
         llm_config={
             "config_list": [
                 {
@@ -258,6 +257,5 @@ Rules:
             ],
             "temperature": 0.7
         }
-        
+
         return name, system_message, llm_config
-    

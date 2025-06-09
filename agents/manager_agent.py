@@ -51,8 +51,11 @@ class ManagerAgent:
         for key in self.channels:
             self.channels[key]=[]
 
-    def initiate_testcase_generation(self,problem_description):
-        tc_prompt = self.helper.build_tc_prompt(problem_description)
+    def initiate_testcase_generation(
+        self, problem_description,sample_input, sample_output):
+        tc_prompt = self.helper.build_tc_prompt(
+            problem_description, sample_input, sample_output
+        )
         self.log_message("test_channel", f"Manager:\n{tc_prompt}")          
         tc_response = self.testcase_agent.conversable.generate_reply([{"role":"user","content":tc_prompt}])
         self.log_message ("test_channel", f"TestCaseGenerator:\n{tc_response}")
@@ -101,7 +104,7 @@ Double-check your code, then please give your revised code or state "I'm sure th
 
 OUTPUT FORMAT: 
 If you're sure your implementation is perfect, return only the following sentence: "I'm sure the implementation is perfect"
-Else: Give give only the corrected function implementation. 
+Else: Give only the corrected function implementation. 
 ***Do NOT include any explanations or markdown. Your answer must contain just function implementation without extra characters or explanations OR the sentence 'I'm sure the implementation is perfect'***
 """
 
@@ -112,10 +115,18 @@ Else: Give give only the corrected function implementation.
         testcase_feedback = f"""
 The execution report indicates the following issues: {executor_response}
 Could you please examine the test cases you gave? There might be errors in your test design
-Double-check them, then correct the problem if the issue is about the testcases. If not, then you may state 'I'm sure the testcases are true'
+Double-check them, then correct the problem if the issue is about the testcases. 
+If not, then please add only one more testcase to your existing testcases.
 
 OUTPUT FORMAT: 
-***If you're sure the testcases are true:*** return only the following sentence: "I'm sure the testcases are true"
+***If you're sure the testcases are true:*** please add only one more testcase to your existing testcases, and return test cases as a valid JSON array of dictionaries, using the following format:
+[
+    {{
+        "input": <JSON-serializable input>,
+        "expected_output": <JSON-serializable output>
+    }},
+    ...
+]
 
 ***Else:*** 
 
@@ -129,7 +140,7 @@ Return the test cases as a valid JSON array of dictionaries, using the following
     ...
 ]
 
-***Do NOT include any explanations or markdown. Your answer must contain just raw JSON OR the following sentence "I'm sure the testcases are true".***
+***Do NOT include any explanations or markdown. Your answer must contain just raw JSON.***
 """
 
         self.log_message("test_channel", f"Manager:\n{testcase_feedback}")
@@ -153,14 +164,14 @@ Return the test cases as a valid JSON array of dictionaries, using the following
             self.sandbox.stop()
         except:
             pass 
-        
+
         self.sandbox.start()
-        test_testcases = self.initiate_testcase_generation(problem_description)
+        test_testcases = self.initiate_testcase_generation(problem_description,validation_inputs[0],validation_outputs[0])
         test_inputs, test_outputs = self.helper.parse_testcases(test_testcases)  
-        print(test_testcases)      
+        # print(test_testcases)
         coder_response = self.initiate_code_generation(func_name, problem_description, validation_inputs, validation_outputs)
         current_code = self.helper.extract_code(coder_response)
-        print(current_code)
+        # print(current_code)
         self.iter_counter = 0
         while self.iter_counter < self.MAX_ITER:
             self.sandbox.cleanup()
@@ -183,11 +194,12 @@ Return the test cases as a valid JSON array of dictionaries, using the following
 
             if "I'm sure the implementation is perfect" not in coder_fb_response:
                 current_code = self.helper.extract_code(coder_fb_response)
-            if "I'm sure the testcases are true" not in testcase_fb_response:
-                test_inputs, test_outputs = self.helper.parse_testcases(testcase_fb_response)
+            # if "I'm sure the testcases are true" not in testcase_fb_response:
+            test_inputs, test_outputs = self.helper.parse_testcases(testcase_fb_response)
 
             self.iter_counter +=1 
 
         self.log_message("executor_channel", "MAX_ITER reached without success. Current code will be returned.")
         self.sandbox.stop()
+        print("Note that this code didn't managed to pass al the testcases. This code is returned because max iteration count is hit.")
         return current_code

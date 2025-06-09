@@ -10,23 +10,29 @@ class Helper:
     def __init__(self):
         load_dotenv()
         self.key = os.getenv("GROQ_API_KEY")
+        self.openai_key = os.getenv("OPENAI_API_KEY")
 
         # First line is preview model
         # Second line is production model. If preview can't found, then production will be used.
 
-        self.coder_model = "deepseek-r1-distill-llama-70b"
+        self.coder_model = "meta-llama/llama-4-maverick-17b-128e-instruct"
+        # self.coder_model = "deepseek-r1-distill-llama-70b"
         # self.coder_model= "llama-3.3-70b-versatile"
 
         # self.tc_model="meta-llama/llama-4-scout-17b-16e-instruct"
         self.tc_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
+        # self.tc_model = "deepseek-r1-distill-llama-70b"
         # self.tc_model= "llama3-70b-8192"
 
-        self.exec_model="meta-llama/llama-4-scout-17b-16e-instruct"
+        # self.exec_model="meta-llama/llama-4-scout-17b-16e-instruct"
         # self.exec_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
-        # self.exec_model = "llama-3.1-8b-instant"
+        self.exec_model = "llama-3.1-8b-instant"
 
         self.manager_model="mistral-saba-24b"
         # self.manager_model="gemma2-9b-it"
+
+        # self.openai_model = "gpt-3.5-turbo-0125"
+        self.openai_model = "gpt-4-turbo-2024-04-09"
 
     def parse_testcases(self,json_response: str):        
         try:
@@ -99,10 +105,14 @@ REQUIREMENTS:
 
     # - Only for your first answer, we expect your code **to be intentionally wrong** for debugging purposes. Please intentionally add some code lines to make the give wrong outputs. To illustrate: raise some unnecessary exceptions or give unexpected outputs.
 
-    def build_tc_prompt(self, description):
+    def build_tc_prompt(self, description,sample_input,sample_output):
         prompt = f"""
 TASK DESCRIPTION:
 {description}
+
+THERE is one example input and output for this problem. Don't copy them please, these are just for get sense of: 
+Sample input: {sample_input}
+Sample output: {sample_output}
 
 Add at least one:
 - Basic functionality test 
@@ -125,6 +135,10 @@ Rules:
 - If the input consists of multiple values, use a list.
 - Use lowercase booleans (true/false) in JSON.
 - Do NOT include any explanations or markdown. Just raw JSON.
+IMPORTANT RULE: Your entire response **MUST** be exactly one valid JSON array and nothing else. 
+- Do NOT include any text before or after the array.
+- Do NOT use markdown code fences.
+- Do NOT add punctuation, commentary, or stray commas.
 """.strip()
         return prompt
 
@@ -134,10 +148,10 @@ Rules:
         name = "Coder"        
         system_message="You are an AI code generator that creates Python functions based on descriptions and test cases."
 
+        # grok
         llm_config={
             "config_list": [
                 {
-                    # "model":"qwen-2.5-coder-32b",
                     "model":self.coder_model,
                     "base_url": "https://api.groq.com/openai/v1", 
                     "api_key": self.key       
@@ -146,18 +160,20 @@ Rules:
             "temperature": 0.7
         }     
 
-        llm_config_local={
+        # openai
+        llm_config_openai = {
             "config_list": [
                 {
-                    "model":"gemma3:4b",
-                    "base_url": "http://localhost:11434/v1", 
-                    "api_key": "sk-no-key-required"       
+                    "model": self.openai_model, 
+                    "base_url": "https://api.openai.com/v1",   
+                    "api_key": self.openai_key
                 }
             ],
             "temperature": 0.7
-        }  
+        }     
 
-        return name,system_message, llm_config
+        # return name, system_message, llm_config
+        return name, system_message, llm_config_openai
 
     def testcase_generator_config(self):
         name = "TestcaseGenerator"
@@ -170,6 +186,7 @@ Rules:
         Do not include Python code, only structured test descriptions.
         """       
 
+        # grok
         llm_config={
             "config_list": [
                 {
@@ -181,57 +198,28 @@ Rules:
             "temperature": 0.7
         }  
 
-        llm_config_local= {
+        # openai
+        llm_config_openai = {
             "config_list": [
                 {
-                    "model": "gemma3:1b",
-                    "base_url": "http://localhost:11434/v1", 
-                    "api_key": "sk-no-key-required"
+                    "model": self.openai_model,
+                    "base_url": "https://api.openai.com/v1",
+                    "api_key": self.openai_key,
                 }
             ],
-            "temperature": 0.4
-        }          
+            "temperature": 0.7,
+        }
 
-        return name, system_message, llm_config
+        # return name, system_message, llm_config
+        return name, system_message, llm_config_openai
 
     def executor_config(self):
         name = "Executor"
-
-        #         system_message="""
-        # You are an AI code evaluator.
-        # Your job is to test Python functions against given test cases and report results clearly.
-
-        # You will receive:
-        # - Python function code (as string)
-        # - The function name (as string)
-        # - A list of test cases, where each test contains:
-        #     - input: a list of arguments
-        #     - expected_output: the expected result
-
-        # You should:
-        # - Dynamically execute the function
-        # - Run all test cases
-        # - Report which ones pass or fail
-
-        # OUTPUT FORMAT:
-        # "Summary:
-        #     Passed: <num1>
-        #     Failed: <num2>
-        # Mismatches:
-        #     <tc1> -> input: <input1> ; expected output: <expected_output1> ; program output: <actual_output1>
-        #     <tc2> -> input: <input2> ; expected output: <expected_output2> ; program output: <actual_output2>
-        #     ...
-        # "
-        # ### Your answer ***must perfectly match*** the given output format given above. DO NOT add any other character or explanations, just give what is expected as output, stated in output format section.
-        # """
-
         system_message="You are an AI code evaluator. You have only one duty. You need to evaluate the given code and prepare a evaluation report. You must not do debugging. You must not try to solve problems."
 
         llm_config={
             "config_list": [
                 {
-                    # "model":"llama-3.3-70b-versatile",
-                    # "model":"meta-llama/llama-4-maverick-17b-128e-instruct",
                     "model":self.exec_model,
                     "base_url": "https://api.groq.com/openai/v1", 
                     "api_key": self.key       
@@ -240,7 +228,21 @@ Rules:
             "temperature": 0.9
         }  
 
-        return name, system_message, llm_config
+        # openai
+        llm_config_openai = {
+            "config_list": [
+                {
+                    # "model": self.openai_model,
+                    "model": "gpt-4-turbo-2024-04-09",
+                    "base_url": "https://api.openai.com/v1",
+                    "api_key": self.openai_key,
+                }
+            ],
+            "temperature": 0.7,
+        }
+
+        # return name, system_message, llm_config
+        return name, system_message, llm_config_openai
 
     def manager_config(self):
         name = "Manager"

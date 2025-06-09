@@ -56,21 +56,29 @@ def execute_code_batch_old2(
     executions = [execute_helper_old(python_code, input_args) for input_args in inputs]
     return {"executions": executions}
 
-# old TOOL FUNCTION
+# TOOL FUNCTION
+# def execute_code_batch(
+#     python_code_b64: Annotated[str, "Base64-encoded Python function definition as string"],
+#     inputs: Annotated[list, "List of input dictionaries to call the function with"],
+# ) -> dict:
+#     x = sandbox.exec_batch(python_code_b64, inputs, timeout=5)
+#     print(x)
+#     return x
+
+inputs_default = []
+
 def execute_code_batch(
-    python_code_b64: Annotated[str, "Base64-encoded Python function definition as string"],
-    inputs: Annotated[list, "List of input dictionaries to call the function with"],
+    python_code_b64: Annotated[
+        str, "Base64-encoded Python function definition as a UTF-8 string"
+    ],
+    inputs: Annotated[
+        list,
+        "This must be the exact list of test inputs from your JSON payload’s 'inputs' key. Each element will be passed unchanged to the function."  
+    ],
 ) -> dict:
     x = sandbox.exec_batch(python_code_b64, inputs, timeout=5)
     print(x)
     return x
-
-
-# def execute_code_batch(
-#     python_code_b64: Annotated[str, "Base64-encoded Python function definition"],
-#     testcases: Annotated[list, "List of dicts with 'input' and 'expected_output'"],
-# ) -> dict:
-#     return sandbox.exec_batch(python_code_b64, testcases, timeout=5)
 
 
 class ExecutorAgent: 
@@ -160,6 +168,6 @@ IMPORTANT RULES:
             "inputs": inputs,
             "testcases": testcases  
         }
-
+        self.inputs_default=inputs
         full_message = prompt + "\n" + json.dumps(payload)
         return self.run_task(full_message)

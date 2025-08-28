@@ -1,0 +1,48 @@
+{
+    "text": "Write a function to find the number of ways to fill it with 2 x 1 dominoes for the given 3 x n board.",
+    "code": "def count_ways(n): \r\n\tA = [0] * (n + 1) \r\n\tB = [0] * (n + 1) \r\n\tA[0] = 1\r\n\tA[1] = 0\r\n\tB[0] = 0\r\n\tB[1] = 1\r\n\tfor i in range(2, n+1): \r\n\t\tA[i] = A[i - 2] + 2 * B[i - 1] \r\n\t\tB[i] = A[i - 1] + B[i - 2] \r\n\treturn A[n] ",
+    "task_id": 5,
+    "test_setup_code": "",
+    "test_list": [
+        "assert count_ways(2) == 3",
+        "assert count_ways(8) == 153",
+        "assert count_ways(12) == 2131"
+    ],
+    "challenge_test_list": []
+}
+{
+    "text": "Write a function to find the perimeter of a square.",
+    "code": "def square_perimeter(a):\r\n  perimeter=4*a\r\n  return perimeter",
+    "task_id": 17,
+    "test_setup_code": "",
+    "test_list": [
+        "assert square_perimeter(10)==40",
+        "assert square_perimeter(5)==20",
+        "assert square_perimeter(4)==16"
+    ],
+    "challenge_test_list": []
+}
+{
+    "text": "Write a python function to convert a decimal number to binary number.",
+    "code": "def decimal_To_Binary(N): \r\n    B_Number = 0\r\n    cnt = 0\r\n    while (N != 0): \r\n        rem = N % 2\r\n        c = pow(10,cnt)  \r\n        B_Number += rem*c  \r\n        N //= 2 \r\n        cnt += 1\r\n    return B_Number  ",
+    "task_id": 33,
+    "test_setup_code": "",
+    "test_list": [
+        "assert decimal_To_Binary(10) == 1010",
+        "assert decimal_To_Binary(1) == 1",
+        "assert decimal_To_Binary(20) == 10100"
+    ],
+    "challenge_test_list": []
+}
+{
+    "text": "Write a function to find the n-th rectangular number.",
+    "code": "def find_rect_num(n):\r\n  return n*(n + 1) ",
+    "task_id": 35,
+    "test_setup_code": "",
+    "test_list": [
+        "assert find_rect_num(4) == 20",
+        "assert find_rect_num(5) == 30",
+        "assert find_rect_num(6) == 42"
+    ],
+    "challenge_test_list": []
+}

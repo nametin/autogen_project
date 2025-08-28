@@ -45,28 +45,9 @@ def execute_helper_old(python_code: str, input_args: dict):
         "error": error
     }    
 
-# OLD TOOL FUNCTION (before docker implementation)
-def execute_code_batch_old2(
-    python_code_b64: Annotated[
-        str, "Base64-encoded Python function definition as string"
-    ],
-    inputs: Annotated[list, "List of input dictionaries to call the function with"],
-) -> dict:
-    python_code = base64.b64decode(python_code_b64).decode("utf-8")
-    executions = [execute_helper_old(python_code, input_args) for input_args in inputs]
-    return {"executions": executions}
-
-# TOOL FUNCTION
-# def execute_code_batch(
-#     python_code_b64: Annotated[str, "Base64-encoded Python function definition as string"],
-#     inputs: Annotated[list, "List of input dictionaries to call the function with"],
-# ) -> dict:
-#     x = sandbox.exec_batch(python_code_b64, inputs, timeout=5)
-#     print(x)
-#     return x
-
 inputs_default = []
 
+# TOOL FUNCTION
 def execute_code_batch(
     python_code_b64: Annotated[
         str, "Base64-encoded Python function definition as a UTF-8 string"
@@ -77,7 +58,6 @@ def execute_code_batch(
     ],
 ) -> dict:
     x = sandbox.exec_batch(python_code_b64, inputs, timeout=5)
-    print(x)
     return x
 
 

@@ -9,11 +9,10 @@ class DockerSandbox:
     def __init__(
         self,
         image: str= "python:3.9",
-        network: str = "none", #no web access
-        memory: str = "512m", #ram
+        network: str = "none", 
+        memory: str = "512m", 
         cpus: str = "0.5"
     ):
-        # Core configuration for sandbox container
         self.image = image
         self.network = network
         self.memory = memory
@@ -97,12 +96,10 @@ class DockerSandbox:
         out, err = proc.stdout.decode().strip(), proc.stderr.decode().strip()
         print(err)
         if proc.returncode != 0:
-            # Başarısız exit kodu gelmiş, JSON parse edebiliyorsan parse et
             try:
                 return json.loads(out)
             except json.JSONDecodeError:
                 return {"error": err or out}
-        # Başarılı çalışma, çıktıyı JSON’a dönüştür
         try:
             return json.loads(out)
         except json.JSONDecodeError as e:
@@ -153,11 +150,9 @@ class DockerSandbox:
             # -f: stop running container if needed and then remove
             subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
-            # Eğer container zaten yoksa hata kodu 1 dönüyor; onu görmezden gelebiliriz
             stderr = e.stderr.decode().lower()
             if "no such container" in stderr:
                 return
-            # Diğer tüm durumlar ciddi hata olarak yükseltilebilir
             raise RuntimeError(f"Failed to stop sandbox container: {stderr.strip()}") from e
 
     def copy_file(self,src_path: str, dest_path: str) -> None: 
@@ -184,8 +179,3 @@ class DockerSandbox:
             stderr = e.stderr.decode().strip()
             print(stderr)
             raise RuntimeError(f"Failed to copy '{src_path}' into sandbox: {stderr}") from e
-
-    def test(self):
-        # py_path = os.path.join(self.container_dir, "run_test.py")
-        py_path = os.path.join(self.sandbox_dir, "run_test.py")
-        self.copy_file("./util/run_test.py", py_path)

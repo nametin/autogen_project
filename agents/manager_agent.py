@@ -168,10 +168,11 @@ Return the test cases as a valid JSON array of dictionaries, using the following
         self.sandbox.start()
         test_testcases = self.initiate_testcase_generation(problem_description,validation_inputs[0],validation_outputs[0])
         test_inputs, test_outputs = self.helper.parse_testcases(test_testcases)  
-        # print(test_testcases)
+        print(test_inputs)
+        print(test_outputs)
         coder_response = self.initiate_code_generation(func_name, problem_description, validation_inputs, validation_outputs)
         current_code = self.helper.extract_code(coder_response)
-        # print(current_code)
+        print(current_code)
         self.iter_counter = 0
         while self.iter_counter < self.MAX_ITER:
             self.sandbox.cleanup()

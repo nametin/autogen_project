@@ -24,17 +24,29 @@ class Helper:
         # self.tc_model = "deepseek-r1-distill-llama-70b"
         # self.tc_model= "llama3-70b-8192"
 
-        # self.exec_model="meta-llama/llama-4-scout-17b-16e-instruct"
+        self.exec_model="meta-llama/llama-4-scout-17b-16e-instruct"
         # self.exec_model= "meta-llama/llama-4-maverick-17b-128e-instruct"
-        self.exec_model = "llama-3.1-8b-instant"
+        # self.exec_model = "llama-3.1-8b-instant"
 
         self.manager_model="mistral-saba-24b"
         # self.manager_model="gemma2-9b-it"
 
         # self.openai_model = "gpt-3.5-turbo-0125"
-        self.openai_model = "gpt-4-turbo-2024-04-09"
+        # self.openai_model = "gpt-4-turbo-2024-04-09"
+        # self.openai_model = "gpt-4.1-mini-2025-04-14"
+        self.openai_model = "gpt-4o-2024-08-06"
 
-    def parse_testcases(self,json_response: str):        
+        self.use_openai = True
+
+    def parse_testcases(self,json_response: str):    
+        if "```" in json_response:
+            code_blocks = re.findall(
+                r"```(?:json)?\n(.*?)```", json_response, re.DOTALL
+            )
+            json_response = code_blocks[0].strip() if code_blocks else json_response.strip()
+        else:
+            json_response = json_response.strip()
+
         try:
             testcases = json.loads(json_response)
             inputs = []
@@ -42,10 +54,12 @@ class Helper:
 
             for case in testcases:
                 inp = case.get("input")
+                if(type(inp)==list):
+                    inp = inp[0]
+
                 out = case.get("expected_output")
 
                 if isinstance(inp, list):
-                    # Çoklu input için → tuple
                     inputs.append(tuple(inp))
                 else:
                     inputs.append((inp,))
@@ -148,7 +162,7 @@ IMPORTANT RULE: Your entire response **MUST** be exactly one valid JSON array an
         name = "Coder"        
         system_message="You are an AI code generator that creates Python functions based on descriptions and test cases."
 
-        # grok
+        # groq
         llm_config={
             "config_list": [
                 {
@@ -171,9 +185,9 @@ IMPORTANT RULE: Your entire response **MUST** be exactly one valid JSON array an
             ],
             "temperature": 0.7
         }     
-
-        # return name, system_message, llm_config
-        return name, system_message, llm_config_openai
+        if self.use_openai:
+            return name, system_message, llm_config_openai
+        return name, system_message, llm_config
 
     def testcase_generator_config(self):
         name = "TestcaseGenerator"
@@ -209,9 +223,9 @@ IMPORTANT RULE: Your entire response **MUST** be exactly one valid JSON array an
             ],
             "temperature": 0.7,
         }
-
-        # return name, system_message, llm_config
-        return name, system_message, llm_config_openai
+        if self.use_openai:
+            return name, system_message, llm_config_openai
+        return name, system_message, llm_config
 
     def executor_config(self):
         name = "Executor"
@@ -232,8 +246,8 @@ IMPORTANT RULE: Your entire response **MUST** be exactly one valid JSON array an
         llm_config_openai = {
             "config_list": [
                 {
-                    # "model": self.openai_model,
-                    "model": "gpt-4-turbo-2024-04-09",
+                    "model": self.openai_model,
+                    # "model": "gpt-4-turbo-2024-04-09",
                     "base_url": "https://api.openai.com/v1",
                     "api_key": self.openai_key,
                 }
@@ -241,8 +255,9 @@ IMPORTANT RULE: Your entire response **MUST** be exactly one valid JSON array an
             "temperature": 0.7,
         }
 
-        # return name, system_message, llm_config
-        return name, system_message, llm_config_openai
+        if self.use_openai:
+            return name, system_message, llm_config_openai
+        return name, system_message, llm_config
 
     def manager_config(self):
         name = "Manager"
@@ -260,4 +275,18 @@ IMPORTANT RULE: Your entire response **MUST** be exactly one valid JSON array an
             "temperature": 0.7
         }
 
+        # openai
+        llm_config_openai = {
+            "config_list": [
+                {
+                    "model": self.openai_model,
+                    "base_url": "https://api.openai.com/v1",
+                    "api_key": self.openai_key,
+                }
+            ],
+            "temperature": 0.7,
+        }
+
+        # if self.use_openai:
+        #     return name, system_message, llm_config_openai
         return name, system_message, llm_config
